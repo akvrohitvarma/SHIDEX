@@ -30,17 +30,6 @@ def stretch(passw, iv1):
 
     return digest
 
-
-# encrypt file function
-# arguments:
-# infile: plaintext file path
-# outfile: ciphertext file path
-# passw: encryption password
-# bufferSize: optional buffer size, must be a multiple of
-#             AES block size (16)
-#             using a larger buffer speeds up things when dealing
-#             with big files
-#             Default is 64KB.
 def encryptFile(infile, outfile, passw, bufferSize=bufferSizeDef):
     try:
         with open(infile, "rb") as fIn:
@@ -62,15 +51,6 @@ def encryptFile(infile, outfile, passw, bufferSize=bufferSizeDef):
         raise ValueError("Unable to read input file.")
 
 
-# encrypt binary stream function
-# arguments:
-# fIn: input binary stream
-# fOut: output binary stream
-# passw: encryption password
-# bufferSize: encryption buffer size, must be a multiple of
-#             AES block size (16)
-#             using a larger buffer speeds up things when dealing
-#             with long streams
 def encryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef):
     # validate bufferSize
     if bufferSize % AESBlockSize != 0:
@@ -113,8 +93,6 @@ def encryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef):
     # write header
     fOut.write(bytes("AES", "utf8"))
 
-    # write version (AES Crypt version 2 file format -
-    # see https://www.aescrypt.com/aes_file_format.html)
     fOut.write(b"\x02")
 
     # reserved byte (set to zero)
@@ -161,9 +139,7 @@ def encryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef):
         if bytesRead < bufferSize:
             # file size mod 16, lsb positions
             fs16 = bytes([bytesRead % AESBlockSize])
-            # pad data (this is NOT PKCS#7!)
-            # ...unless no bytes or a multiple of a block size
-            # of bytes was read
+            # pad data 
             if bytesRead % AESBlockSize == 0:
                 padLen = 0
             else:
@@ -177,7 +153,6 @@ def encryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef):
             fOut.write(cText)
             # break
             break
-        # ...otherwise a full bufferSize was read
         else:
             # encrypt data
             cText = encryptor0.update(fdata)
@@ -192,56 +167,28 @@ def encryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef):
     # write HMAC-SHA256 of the encrypted file
     fOut.write(hmac0.finalize())
 
-
-# decrypt file function
-# arguments:
-# infile: ciphertext file path
-# outfile: plaintext file path
-# passw: encryption password
-# bufferSize: optional buffer size, must be a multiple of AES block size (16)
-#             using a larger buffer speeds up things when dealing with
-#             big files
-#             Default is 64KB.
 def decryptFile(infile, outfile, passw, bufferSize=bufferSizeDef):
     try:
         with open(infile, "rb") as fIn:
-            # check that output file does not exist
-            # or that, if exists, is not the same as the input file
-            # (i.e.: overwrite if it seems safe)
             if path.isfile(outfile):
                 if path.samefile(infile, outfile):
                     raise ValueError("Input and output files are the same.")
             try:
                 with open(outfile, "wb") as fOut:
                     try:
-                        # decrypt file stream
                         decryptStream(fIn, fOut, passw, bufferSize)
                     except ValueError as exd:
-                        # should not remove output file here because it is still in use
-                        # re-raise exception
                         raise ValueError(str(exd))
 
             except IOError:
                 raise ValueError("Unable to write output file.")
             except ValueError as exd:
-                # remove output file on error
                 remove(outfile)
-                # re-raise exception
                 raise ValueError(str(exd))
 
     except IOError:
         raise ValueError("Unable to read input file.")
 
-
-# decrypt stream function
-# arguments:
-# fIn: input binary stream
-# fOut: output binary stream
-# passw: encryption password
-# bufferSize: decryption buffer size, must be a multiple of AES block size (16)
-#             using a larger buffer speeds up things when dealing with
-#             long streams
-# inputLength: input stream length (DEPRECATED)
 def decryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef, inputLength=None):
     if inputLength is not None:
         warnings.warn(
@@ -249,7 +196,6 @@ def decryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef, inputLength=None):
             DeprecationWarning,
             stacklevel=2,
         )
-    # validate bufferSize
     if bufferSize % AESBlockSize != 0:
         raise ValueError("Buffer size must be a multiple of AES block size")
 
@@ -260,12 +206,9 @@ def decryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef, inputLength=None):
         fIn = io.BufferedReader(getBufferableFileobj(fIn), bufferSize)
 
     fdata = fIn.read(3)
-    # check if file is in AES Crypt format (also min length check)
     if fdata != b"AES":
-        raise ValueError("File is corrupted or not an AES Crypt (or SHIDEX) file.")
+        raise ValueError("File is corrupted or not a SHIDEX file.")
 
-    # check if file is in AES Crypt format, version 2
-    # (the only one compatible with pyAesCrypt)
     fdata = fIn.read(1)
     if len(fdata) != 1:
         raise ValueError("File is corrupted.")
@@ -363,8 +306,6 @@ def decryptStream(fIn, fOut, passw, bufferSize=bufferSizeDef, inputLength=None):
     if hmac0 != hmac0Act.finalize():
         raise ValueError("Bad HMAC (file is corrupted).")
 
-# BufferableFileobj class
-# A fileobj suitable as input to io.BufferedReader
 class BufferableFileobj:
     def __init__(self, fileobj):
         self.__fileobj = fileobj
@@ -382,9 +323,6 @@ class BufferableFileobj:
         b[0:n] = rbuf
         return n
 
-# Returns input argument if it is suitable as input to io.BufferedReader,
-#  otherwise an instance of BufferableFileobj with input argument as
-#  backing fileobj
 def getBufferableFileobj(fileobj):
     noattr = object()
     for attr in ('readable','readinto','closed'):
