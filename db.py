@@ -58,9 +58,3 @@ def not_tampered(filepath):
     cursor.execute("UPDATE files SET status=? WHERE filepath=?", ("UNALTERED", filepath))
     conn.commit()
     conn.close()
-
-#print(is_exist("/Users/rohit/Documents/my-python-projects/shidex/fileLogging/div.txt"))
-
-not_tampered("/Users/rohit/Documents/my-python-projects/shidex/fileLogging/example.txt")
-#initialize_db()
-#fetch_hash("/Users/rohit/Documents/my-python-projects/shidex/fileLogging/example.txt")

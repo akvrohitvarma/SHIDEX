@@ -49,7 +49,3 @@ def check_for_altered_files():
         print("No altered files detected.")
 
     conn.close()
-
-#log("/Users/rohit/Documents/my-python-projects/shidex/fileLogging/div.txt")
-log("/Users/rohit/Documents/my-python-projects/shidex/fileLogging/sample.txt")
-
